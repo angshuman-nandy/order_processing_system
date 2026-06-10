@@ -4,6 +4,14 @@ Log of user commands and Claude's responses. Most recent entry at the top.
 
 ---
 
+## Entry 15 — 2026-06-10
+
+**User:** "create a seed data script... users_seed_data.json, orders_seed_data.json, order_items_seed_data.json, and a script which loads all three. Add an admin and a customer to users_seed_data.json, with a provision in the script to promote a customer from the seed data to admin. Put it all in a seed_data folder parallel to backend, frontend and handoffs." → "can i run docker compose exec command to seed all the data?" → "go with 2nd option"
+
+**Claude summary:** Created a top-level `seed_data/` folder with three JSON files (`users_seed_data.json` — one admin + one customer with fixed UUIDs and plaintext passwords for hashing; `orders_seed_data.json` — 3 orders for the customer in PENDING/SHIPPED/DELIVERED states; `order_items_seed_data.json` — 5 line items across those orders) and `seed.py`, which adds `backend/` to `sys.path` and reuses the real `app.database`, `app.models`, `app.enums`, and `app.security.hash_password` so the seed data always matches the live schema/hashing. The script is idempotent (skips rows whose UUID already exists) and supports `--promote-admin [EMAIL]` — with no email it promotes the customer from `users_seed_data.json`, otherwise the given email; it no-ops if the user is already admin. User asked about running it via `docker compose exec`; since `seed_data/` isn't inside the `api` image (build context is `backend/`), added a read-only bind mount `./seed_data:/seed_data:ro` to the `api` service in `docker-compose.yml`. Rebuilt and brought up the full stack (`docker compose up -d --build`) — alembic ran cleanly on the new volume. Verified `docker compose exec api uv run python /seed_data/seed.py` seeds successfully, re-running skips existing rows, and `--promote-admin` promotes/no-ops correctly (confirmed via `psql`, then reverted the test promotion back to `customer`).
+
+---
+
 ## Entry 14 — 2026-06-10
 
 **User:** "i want a service layer between routers and db" (plan mode) → asked to choose error-handling style → "Domain exceptions + translation" → approved plan

@@ -177,16 +177,16 @@ Steps follow the dependency order you specified. Each step lists what to create,
 ## Phase 8 — Frontend (React + Vite)
 > Completely independent of backend code (calls it over HTTP). Can start any time after Phase 3 confirms the API shape.
 
-- [ ] **8.1** Scaffold Vite project, install deps: `axios`, `react-router-dom`, `react-hot-toast`, Tailwind
-- [ ] **8.2** `api/orders.js` — axios instance, interceptors, all API call functions
-- [ ] **8.3** `context/AuthContext.jsx` — token state, login/logout, JWT decode for role
-- [ ] **8.4** `PrivateRoute.jsx`, `AdminRoute.jsx`
-- [ ] **8.5** Pages: `LoginPage`, `RegisterPage` — parallel
-- [ ] **8.6** Pages: `CustomerOrdersPage`, `NewOrderPage` — parallel
-- [ ] **8.7** Pages: `AdminOrdersPage`, `AdminUsersPage` — parallel
-- [ ] **8.8** Components: `Navbar`, `OrderCard`, `OrderForm`, `StatusBadge`, `StatusFilter`, `AdminStatusPatch`
+- [x] **8.1** Scaffold Vite project, install deps: `axios`, `react-router-dom` (hand-written scaffold; styling ported from design handoff prototype CSS, no Tailwind/react-hot-toast needed)
+- [x] **8.2** `api/orders.js` — axios instance, interceptors, all API call functions
+- [x] **8.3** `context/AuthContext.jsx` — token state, user fetched via `GET /users/me` (JWT only carries `sub`+`role`, no email), login/logout
+- [x] **8.4** `PrivateRoute.jsx`, `AdminRoute.jsx`
+- [x] **8.5** Pages: `LoginPage`, `RegisterPage`
+- [x] **8.6** Pages: `CustomerOrdersPage`, `NewOrderPage`
+- [x] **8.7** Pages: `AdminOrdersPage`, `AdminUsersPage`
+- [x] **8.8** Components: `Navbar`, `OrderCard` (handles both customer/admin via `isAdmin` prop), `OrderForm`, `StatusBadge`, `StatusFilter`, `AdminStatusPatch`, `Toast`
 
-**PAR with backend Phases 5–7** — frontend has no build-time dependency on backend source. Pages within 8.5/8.6/8.7 can be written in parallel pairs.
+**Verify:** `npm install` + `npm run dev` — Vite serves cleanly on :5173. Verified the full API contract against the live backend via curl (register → login → /users/me → create order → list → cancel, plus admin /orders and /users) — all field names (`product_name`/`quantity`/`price`, `owner.email`, numeric-string `price`) match the frontend code.
 
 ---
 

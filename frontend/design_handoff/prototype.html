@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order System</title>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #fff7ed;
+      --bg-card:   #ffffff;
+      --bg-muted:  #ffedd5;
+      --border:    #fed7aa;
+      --border-strong: #fb923c;
+
+      --primary:   #f97316;
+      --primary-dk:#c2410c;
+      --primary-lt:#ffedd5;
+
+      --nav-bg:    #431407;
+      --nav-text:  #fed7aa;
+
+      --text:      #431407;
+      --text-muted:#9a3412;
+      --text-light:#78350f;
+
+      --red:       #dc2626;
+      --red-lt:    #fee2e2;
+      --green:     #16a34a;
+      --green-lt:  #dcfce7;
+
+      --radius:    8px;
+      --shadow:    0 1px 3px rgba(120,53,15,0.12), 0 1px 2px rgba(120,53,15,0.08);
+      --shadow-md: 0 4px 12px rgba(120,53,15,0.15);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #root { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Navbar ── */
+    .navbar {
+      background: var(--nav-bg);
+      color: var(--nav-text);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      color: #fb923c;
+      text-decoration: none;
+      margin-right: 8px;
+    }
+    .navbar-links { display: flex; gap: 4px; flex: 1; }
+    .nav-link {
+      color: #fdba74;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+    .nav-link:hover { background: rgba(251,146,60,0.15); color: #fb923c; }
+    .nav-link.active { background: rgba(251,146,60,0.2); color: #fb923c; }
+    .navbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .navbar-email { font-size: 13px; color: #fdba74; }
+    .nav-logout {
+      background: rgba(251,146,60,0.15);
+      border: 1px solid rgba(251,146,60,0.3);
+      color: #fb923c;
+      padding: 4px 12px;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    .nav-logout:hover { background: rgba(251,146,60,0.25); }
+
+    /* ── Role badge ── */
+    .role-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+    .role-badge.customer { background: #fed7aa; color: #9a3412; }
+    .role-badge.admin    { background: #fde68a; color: #78350f; }
+
+    /* ── Page shell ── */
+    .page { flex: 1; padding: 32px 24px; max-width: 860px; margin: 0 auto; width: 100%; }
+    .page-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+
+    /* ── Auth card ── */
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+    }
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px 32px;
+      width: 340px;
+      box-shadow: var(--shadow-md);
+    }
+    .auth-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .auth-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+
+    /* ── Form elements ── */
+    .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.04em; }
+    .field input, .field select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .field input:focus, .field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(249,115,22,0.12); }
+    .field .error-msg { font-size: 12px; color: var(--red); }
+    .field input.has-error { border-color: var(--red); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px 18px;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dk); }
+    .btn-outline {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--border-strong);
+    }
+    .btn-outline:hover:not(:disabled) { background: var(--primary-lt); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { background: var(--bg-muted); }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+    /* ── Status badges ── */
+    .status-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .status-PENDING    { background: #fef3c7; color: #92400e; }
+    .status-PROCESSING { background: #fed7aa; color: #9a3412; }
+    .status-SHIPPED    { background: #ede9fe; color: #5b21b6; }
+    .status-DELIVERED  { background: var(--green-lt); color: #15803d; }
+    .status-CANCELLED  { background: var(--red-lt); color: #991b1b; }
+
+    /* ── Order card ── */
+    .order-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      transition: box-shadow 0.15s;
+    }
+    .order-card:hover { box-shadow: var(--shadow-md); }
+    .order-card.highlight { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(249,115,22,0.2); }
+    .order-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .order-id { font-weight: 700; font-size: 13px; color: var(--text); }
+    .order-date { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+    .order-email { font-size: 12px; color: var(--text-muted); font-style: italic; }
+    .order-items { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; }
+    .order-item { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; color: var(--text-light); }
+    .order-item .item-name { color: var(--text); }
+    .order-total { display: flex; justify-content: flex-end; font-weight: 700; font-size: 14px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .order-footer { display: flex; align-items: center; justify-content: flex-end; margin-top: 12px; gap: 8px; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-bar select { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; background: #fff; color: var(--text); cursor: pointer; }
+    .filter-bar select:focus { outline: none; border-color: var(--primary); }
+    .orders-count { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 60px 24px; color: var(--text-muted); }
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; }
+    .empty-state p { font-size: 13px; margin-bottom: 18px; }
+
+    /* ── Skeleton ── */
+    .skeleton { background: linear-gradient(90deg, #fed7aa 25%, #ffedd5 50%, #fed7aa 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-card { height: 110px; margin-bottom: 12px; border-radius: var(--radius); }
+
+    /* ── New order form ── */
+    .order-form-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    .order-form-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-light); padding: 0 8px 8px; text-align: left; }
+    .order-form-table td { padding: 4px 6px; vertical-align: top; }
+    .order-form-table input { border: 1px solid var(--border); border-radius: 5px; padding: 7px 8px; font-size: 13px; width: 100%; background: #fff; color: var(--text); outline: none; }
+    .order-form-table input:focus { border-color: var(--primary); }
+    .order-form-table input.has-error { border-color: var(--red); }
+    .order-form-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .order-form-total { font-size: 18px; font-weight: 700; }
+
+    /* ── Admin users table ── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-light); padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--border); }
+    .data-table td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--bg-muted); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fffbf7; }
+
+    /* ── Admin status select ── */
+    .status-select { border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; font-size: 12px; font-weight: 600; background: #fff; cursor: pointer; color: var(--text); }
+    .status-select:focus { outline: none; border-color: var(--primary); }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+    .toast {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--nav-bg);
+      color: var(--nav-text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-md);
+      min-width: 220px;
+      animation: toast-in 0.2s ease;
+    }
+    .toast.error { background: var(--red); }
+    .toast.success { background: var(--green); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Auth link ── */
+    .auth-footer { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 16px; }
+    .auth-footer a { color: var(--primary); font-weight: 600; text-decoration: none; cursor: pointer; }
+    .auth-footer a:hover { text-decoration: underline; }
+
+    /* ── Card wrapper ── */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+
+    /* ── Separator ── */
+    hr.warm { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* ── Admin status inline select ── */
+    .inline-status-wrap { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .inline-status-wrap label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-light); }
+
+    /* ── Page header (title + action button) ── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+    .page-header .page-title { margin-bottom: 0; }
+
+    /* ── Data table wrapper ── */
+    .data-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — mobile first adjustments
+       ═══════════════════════════════════════════ */
+    @media (max-width: 640px) {
+
+      /* Navbar: hide email, keep brand + links + logout */
+      .navbar {
+        padding: 0 12px;
+        height: auto;
+        min-height: 52px;
+        flex-wrap: wrap;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        gap: 6px;
+        row-gap: 0;
+      }
+      .navbar-brand { font-size: 14px; margin-right: 4px; }
+      .navbar-links { gap: 0; }
+      .nav-link { padding: 6px 8px; font-size: 12px; }
+      .navbar-email { display: none; }
+      .navbar-right { gap: 6px; }
+
+      /* Page shell */
+      .page { padding: 20px 14px; }
+      .page-title { font-size: 18px; }
+
+      /* Page header: stack on very narrow screens */
+      .page-header { flex-wrap: wrap; }
+
+      /* Auth card: edge-to-edge with margin */
+      .auth-wrap { align-items: flex-start; padding-top: 40px; }
+      .auth-card { width: calc(100% - 28px); padding: 28px 20px; }
+
+      /* Filter bar: select fills row */
+      .filter-bar select { flex: 1; min-width: 0; }
+
+      /* Order card: tighten padding */
+      .order-card { padding: 14px 14px; }
+      .order-date { margin-left: 0; width: 100%; }
+
+      /* New order form: convert table to stacked rows */
+      .order-form-table,
+      .order-form-table tbody { display: block; }
+      .order-form-table thead { display: none; }
+      .order-form-table tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr 44px;
+        grid-template-rows: auto auto;
+        gap: 6px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .order-form-table td { display: block; padding: 0; }
+      .order-form-table td:nth-child(1) { grid-column: 1 / -1; } /* name: full width */
+      .order-form-table td:nth-child(2) { }                       /* qty */
+      .order-form-table td:nth-child(3) { }                       /* price */
+      .order-form-table td:nth-child(4) { display: flex; align-items: center; justify-content: center; } /* × */
+
+      /* New order bottom: stack total above buttons */
+      .order-form-bottom { flex-direction: column-reverse; align-items: stretch; gap: 12px; }
+      .order-form-bottom > div { display: flex; justify-content: space-between; align-items: center; }
+      .order-form-total { font-size: 16px; }
+
+      /* Toast: full-width at bottom */
+      .toast-container { left: 12px; right: 12px; bottom: 16px; }
+      .toast { min-width: unset; width: 100%; }
+
+      /* Card for users table: let it scroll */
+      .data-table-wrap { overflow-x: auto; }
+      .data-table th, .data-table td { white-space: nowrap; padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+// shared.jsx — mock data, StatusBadge, Toast system
+
+const STATUSES = ['PENDING','PROCESSING','SHIPPED','DELIVERED','CANCELLED']
+const ADMIN_STATUSES = ['PENDING','PROCESSING','SHIPPED','DELIVERED']
+
+let _nextId = 100
+function uid() { return (++_nextId).toString().padStart(8,'0') + '-mock' }
+
+const MOCK_STATE = {
+  orders: [
+    {
+      id: '8f3a1b2c-mock', status: 'PENDING',
+      created_at: '2026-06-10T14:32:00Z',
+      user_email: 'jane@example.com', user_id: 2,
+      items: [
+        { name: 'Running Shoes', qty: 2, unit_price: 89.99 },
+        { name: 'Water Bottle',  qty: 1, unit_price: 14.99 },
+      ]
+    },
+    {
+      id: 'a1c2e3f4-mock', status: 'SHIPPED',
+      created_at: '2026-06-09T09:15:00Z',
+      user_email: 'jane@example.com', user_id: 2,
+      items: [{ name: 'Yoga Mat', qty: 1, unit_price: 34.99 }]
+    },
+    {
+      id: 'b2d4f6a8-mock', status: 'DELIVERED',
+      created_at: '2026-06-07T11:00:00Z',
+      user_email: 'jane@example.com', user_id: 2,
+      items: [{ name: 'Resistance Bands', qty: 3, unit_price: 12.99 }]
+    },
+    {
+      id: 'c3e5g7b9-mock', status: 'PROCESSING',
+      created_at: '2026-06-10T08:45:00Z',
+      user_email: 'bob@example.com', user_id: 3,
+      items: [
+        { name: 'Protein Powder', qty: 2, unit_price: 29.99 },
+        { name: 'Shaker Bottle',  qty: 1, unit_price: 9.99  },
+      ]
+    },
+    {
+      id: 'd4f6h8c0-mock', status: 'CANCELLED',
+      created_at: '2026-06-08T16:20:00Z',
+      user_email: 'bob@example.com', user_id: 3,
+      items: [{ name: 'Jump Rope', qty: 1, unit_price: 19.99 }]
+    },
+  ],
+  users: [
+    { id: 1, email: 'admin@example.com', role: 'admin',    joined: '2026-01-01T00:00:00Z' },
+    { id: 2, email: 'jane@example.com',  role: 'customer', joined: '2026-03-15T00:00:00Z' },
+    { id: 3, email: 'bob@example.com',   role: 'customer', joined: '2026-05-22T00:00:00Z' },
+  ]
+}
+
+// Simulated API delay
+function delay(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+const mockApi = {
+  async login(email, password) {
+    await delay(600)
+    if (password !== 'password') throw { response: { status: 401 } }
+    const u = MOCK_STATE.users.find(u => u.email === email)
+    if (!u) throw { response: { status: 401 } }
+    // Fake JWT: encode role in payload
+    const payload = btoa(JSON.stringify({ id: u.id, email: u.email, role: u.role }))
+    return { access_token: `header.${payload}.sig` }
+  },
+  async register(email, password) {
+    await delay(600)
+    if (MOCK_STATE.users.find(u => u.email === email)) throw { response: { status: 422, data: { detail: 'Email already registered' } } }
+    const newUser = { id: MOCK_STATE.users.length + 1, email, role: 'customer', joined: new Date().toISOString() }
+    MOCK_STATE.users.push(newUser)
+    return newUser
+  },
+  async getOrders(status, userId) {
+    await delay(400)
+    let orders = [...MOCK_STATE.orders]
+    if (userId) orders = orders.filter(o => o.user_id === userId)
+    if (status && status !== 'ALL') orders = orders.filter(o => o.status === status)
+    return orders
+  },
+  async createOrder(items, userId, userEmail) {
+    await delay(500)
+    const order = {
+      id: uid(), status: 'PENDING',
+      created_at: new Date().toISOString(),
+      user_email: userEmail, user_id: userId,
+      items
+    }
+    MOCK_STATE.orders.unshift(order)
+    return order
+  },
+  async cancelOrder(id) {
+    await delay(400)
+    const o = MOCK_STATE.orders.find(o => o.id === id)
+    if (!o) throw { response: { status: 404 } }
+    if (o.status !== 'PENDING') throw { response: { status: 400 } }
+    o.status = 'CANCELLED'
+    return o
+  },
+  async updateOrderStatus(id, status) {
+    await delay(350)
+    const o = MOCK_STATE.orders.find(o => o.id === id)
+    if (!o) throw { response: { status: 404 } }
+    o.status = status
+    return o
+  },
+  async getUsers() {
+    await delay(400)
+    return [...MOCK_STATE.users]
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso) {
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+function calcTotal(items) {
+  return items.reduce((sum, i) => sum + (parseFloat(i.unit_price) || 0) * (parseInt(i.qty) || 0), 0)
+}
+
+function fmtPrice(n) { return '£' + n.toFixed(2) }
+
+function shortId(id) { return '#' + id.slice(0, 8).toUpperCase() }
+
+// ── StatusBadge ──────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }) {
+  return <span className={`status-badge status-${status}`}>{status}</span>
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+
+const _toastRef = { add: null }
+
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = React.useState([])
+
+  _toastRef.add = React.useCallback((msg, type = 'info') => {
+    const id = Date.now()
+    setToasts(t => [...t, { id, msg, type }])
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200)
+  }, [])
+
+  return (
+    <>
+      {children}
+      <div className="toast-container">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast ${t.type}`}>
+            {t.type === 'error' ? '✕' : t.type === 'success' ? '✓' : 'ℹ'} {t.msg}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function addToast(msg, type = 'info') {
+  if (_toastRef.add) _toastRef.add(msg, type)
+}
+
+Object.assign(window, {
+  STATUSES, ADMIN_STATUSES,
+  mockApi,
+  formatDate, calcTotal, fmtPrice, shortId,
+  StatusBadge, ToastProvider, addToast
+})
+
+  </script>
+  <script type="text/babel">
+// auth.jsx — AuthContext, LoginPage, RegisterPage
+
+const AuthContext = React.createContext(null)
+
+function AuthProvider({ children }) {
+  const [token, setToken] = React.useState(() => localStorage.getItem('token'))
+  const [user, setUser]   = React.useState(() => {
+    try {
+      const t = localStorage.getItem('token')
+      if (!t) return null
+      const payload = JSON.parse(atob(t.split('.')[1]))
+      return { id: payload.id, email: payload.email, role: payload.role }
+    } catch { return null }
+  })
+
+  const loginFn = async (email, password) => {
+    const data = await mockApi.login(email, password)
+    localStorage.setItem('token', data.access_token)
+    setToken(data.access_token)
+    const payload = JSON.parse(atob(data.access_token.split('.')[1]))
+    const u = { id: payload.id, email: payload.email, role: payload.role }
+    setUser(u)
+    return u
+  }
+
+  const logoutFn = () => {
+    localStorage.removeItem('token')
+    setToken(null)
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ token, user, login: loginFn, logout: logoutFn }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+function useAuth() { return React.useContext(AuthContext) }
+
+// ── LoginPage ─────────────────────────────────────────────────────────────
+
+function LoginPage({ onNavigate }) {
+  const { login } = useAuth()
+  const [email, setEmail]       = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [error, setError]       = React.useState('')
+  const [loading, setLoading]   = React.useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!email || !password) { setError('Please fill in all fields.'); return }
+    setLoading(true)
+    try {
+      const u = await login(email, password)
+      onNavigate(u.role === 'admin' ? '/admin/orders' : '/orders')
+    } catch(err) {
+      const status = err?.response?.status
+      setError(status === 401 ? 'Incorrect email or password.' : 'Something went wrong. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const hint = (email) => {
+    if (!email) return null
+    return null
+  }
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-title">Sign in</div>
+        <div className="auth-sub">Order processing system</div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+              className={error ? 'has-error' : ''}
+            />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={error ? 'has-error' : ''}
+            />
+            {error && <span className="error-msg">{error}</span>}
+          </div>
+          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <div style={{marginTop: 16, padding: '10px 12px', background: '#fff7ed', borderRadius: 6, border: '1px solid #fed7aa'}}>
+          <div style={{fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#78350f', marginBottom: 6}}>Demo accounts</div>
+          <div style={{fontSize: 12, color: '#9a3412', display: 'flex', flexDirection: 'column', gap: 3}}>
+            <span><b>admin@example.com</b> — admin</span>
+            <span><b>jane@example.com</b> — customer</span>
+            <span style={{color: '#c2410c'}}>password: <b>password</b></span>
+          </div>
+        </div>
+
+        <div className="auth-footer">
+          No account?{' '}
+          <a onClick={() => onNavigate('/register')}>Register</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── RegisterPage ──────────────────────────────────────────────────────────
+
+function RegisterPage({ onNavigate }) {
+  const { login } = useAuth()
+  const [email, setEmail]       = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [confirm, setConfirm]   = React.useState('')
+  const [errors, setErrors]     = React.useState({})
+  const [loading, setLoading]   = React.useState(false)
+
+  const validate = () => {
+    const e = {}
+    if (!email)            e.email    = 'Email is required.'
+    if (password.length < 6) e.password = 'Password must be at least 6 characters.'
+    if (password !== confirm) e.confirm = 'Passwords do not match.'
+    return e
+  }
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault()
+    const e = validate()
+    if (Object.keys(e).length) { setErrors(e); return }
+    setErrors({})
+    setLoading(true)
+    try {
+      await mockApi.register(email, password)
+      const u = await login(email, password)
+      onNavigate('/orders')
+    } catch(err) {
+      const msg = err?.response?.data?.detail || 'Registration failed.'
+      setErrors({ email: msg })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-title">Create account</div>
+        <div className="auth-sub">Customers only — admins are pre-provisioned</div>
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com" className={errors.email ? 'has-error' : ''} />
+            {errors.email && <span className="error-msg">{errors.email}</span>}
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="Min. 6 characters" className={errors.password ? 'has-error' : ''} />
+            {errors.password && <span className="error-msg">{errors.password}</span>}
+          </div>
+          <div className="field">
+            <label>Confirm password</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+              placeholder="Repeat password" className={errors.confirm ? 'has-error' : ''} />
+            {errors.confirm && <span className="error-msg">{errors.confirm}</span>}
+          </div>
+          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+            {loading ? 'Creating account…' : 'Create account'}
+          </button>
+        </form>
+        <div className="auth-footer">
+          Already have an account?{' '}
+          <a onClick={() => onNavigate('/login')}>Sign in</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+Object.assign(window, { AuthContext, AuthProvider, useAuth, LoginPage, RegisterPage })
+
+  </script>
+  <script type="text/babel">
+// customer.jsx — CustomerOrdersPage, NewOrderPage
+
+// ── OrderCard (customer) ──────────────────────────────────────────────────
+
+function OrderCard({ order, onCancel, highlight }) {
+  const [cancelling, setCancelling] = React.useState(false)
+  const total = calcTotal(order.items)
+
+  const handleCancel = async () => {
+    setCancelling(true)
+    await onCancel(order.id)
+    setCancelling(false)
+  }
+
+  return (
+    <div className={`order-card ${highlight ? 'highlight' : ''}`}>
+      <div className="order-card-header">
+        <span className="order-id">{shortId(order.id)}</span>
+        <StatusBadge status={order.status} />
+        <span className="order-date">{formatDate(order.created_at)}</span>
+      </div>
+      <div className="order-items">
+        {order.items.map((item, i) => (
+          <div className="order-item" key={i}>
+            <span className="item-name">{item.qty}× {item.name}</span>
+            <span>{fmtPrice(item.unit_price * item.qty)}</span>
+          </div>
+        ))}
+        <div className="order-total">{fmtPrice(total)}</div>
+      </div>
+      <div className="order-footer">
+        {order.status === 'PENDING' ? (
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={handleCancel}
+            disabled={cancelling}
+          >
+            {cancelling ? 'Cancelling…' : 'Cancel order'}
+          </button>
+        ) : (
+          <button className="btn btn-ghost btn-sm" disabled>Cancel order</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── CustomerOrdersPage ────────────────────────────────────────────────────
+
+function CustomerOrdersPage({ onNavigate, newOrderId }) {
+  const { user } = useAuth()
+  const [orders, setOrders]   = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+  const [filter, setFilter]   = React.useState('ALL')
+
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      const data = await mockApi.getOrders(filter === 'ALL' ? null : filter, user?.id)
+      setOrders(data)
+    } catch {
+      addToast('Failed to load orders.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [filter, user])
+
+  React.useEffect(() => {
+    setLoading(true)
+    fetchOrders()
+    const id = setInterval(fetchOrders, 10000)
+    return () => clearInterval(id)
+  }, [fetchOrders])
+
+  const handleCancel = async (id) => {
+    // Optimistic update
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'CANCELLED' } : o))
+    try {
+      await mockApi.cancelOrder(id)
+      addToast('Order cancelled.', 'success')
+    } catch(err) {
+      // Revert
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'PENDING' } : o))
+      const status = err?.response?.status
+      addToast(status === 400 ? 'Only pending orders can be cancelled.' : 'Something went wrong.', 'error')
+    }
+  }
+
+  const filtered = filter === 'ALL' ? orders : orders.filter(o => o.status === filter)
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">My Orders</h1>
+        <button className="btn btn-primary" onClick={() => onNavigate('/orders/new')}>
+          + New Order
+        </button>
+      </div>
+
+      <div className="filter-bar">
+        <select value={filter} onChange={e => setFilter(e.target.value)}>
+          <option value="ALL">All statuses</option>
+          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        {!loading && (
+          <span className="orders-count">{filtered.length} order{filtered.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
+      {loading ? (
+        <>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+        </>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📦</div>
+          <h3>{filter === 'ALL' ? "No orders yet" : `No ${filter.toLowerCase()} orders`}</h3>
+          <p>{filter === 'ALL' ? "You haven't placed any orders yet." : "Try a different filter."}</p>
+          {filter === 'ALL' && (
+            <button className="btn btn-primary" onClick={() => onNavigate('/orders/new')}>
+              Place your first order →
+            </button>
+          )}
+        </div>
+      ) : (
+        filtered.map(order => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            onCancel={handleCancel}
+            highlight={order.id === newOrderId}
+          />
+        ))
+      )}
+    </div>
+  )
+}
+
+// ── NewOrderPage ──────────────────────────────────────────────────────────
+
+function NewOrderPage({ onNavigate, onOrderCreated }) {
+  const { user } = useAuth()
+
+  const emptyRow = () => ({ name: '', qty: '1', price: '' })
+  const [rows, setRows]     = React.useState([emptyRow()])
+  const [errors, setErrors] = React.useState({})
+  const [loading, setLoading] = React.useState(false)
+
+  const updateRow = (i, field, val) => {
+    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r))
+  }
+
+  const removeRow = (i) => {
+    if (rows.length === 1) return
+    setRows(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const total = rows.reduce((sum, r) => sum + (parseFloat(r.price) || 0) * (parseInt(r.qty) || 0), 0)
+
+  const validate = () => {
+    const e = {}
+    rows.forEach((r, i) => {
+      if (!r.name.trim()) e[`name_${i}`] = true
+      if (!r.qty || parseInt(r.qty) <= 0) e[`qty_${i}`] = true
+      if (!r.price || parseFloat(r.price) <= 0) e[`price_${i}`] = true
+    })
+    return e
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const e2 = validate()
+    if (Object.keys(e2).length) { setErrors(e2); return }
+    setErrors({})
+    setLoading(true)
+    try {
+      const items = rows.map(r => ({ name: r.name.trim(), qty: parseInt(r.qty), unit_price: parseFloat(r.price) }))
+      const order = await mockApi.createOrder(items, user.id, user.email)
+      addToast('Order placed!', 'success')
+      onOrderCreated(order.id)
+      onNavigate('/orders')
+    } catch {
+      addToast('Failed to place order. Try again.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="page">
+      <h1 className="page-title">New Order</h1>
+      <div className="card">
+        <form onSubmit={handleSubmit}>
+          <table className="order-form-table">
+            <thead>
+              <tr>
+                <th style={{width: '45%'}}>Product name</th>
+                <th style={{width: '12%'}}>Qty</th>
+                <th style={{width: '22%'}}>Unit price</th>
+                <th style={{width: '21%'}}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i}>
+                  <td>
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={e => updateRow(i, 'name', e.target.value)}
+                      placeholder="Product name"
+                      className={errors[`name_${i}`] ? 'has-error' : ''}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="1"
+                      value={row.qty}
+                      onChange={e => updateRow(i, 'qty', e.target.value)}
+                      className={errors[`qty_${i}`] ? 'has-error' : ''}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={row.price}
+                      onChange={e => updateRow(i, 'price', e.target.value)}
+                      placeholder="0.00"
+                      className={errors[`price_${i}`] ? 'has-error' : ''}
+                    />
+                  </td>
+                  <td style={{textAlign: 'right'}}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => removeRow(i)}
+                      disabled={rows.length === 1}
+                      style={{opacity: rows.length === 1 ? 0.3 : 1}}
+                    >✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => setRows(r => [...r, emptyRow()])}
+          >
+            + Add item
+          </button>
+
+          <div className="order-form-bottom">
+            <button type="button" className="btn btn-ghost" onClick={() => onNavigate('/orders')}>
+              Cancel
+            </button>
+            <div style={{display: 'flex', alignItems: 'center', gap: 20}}>
+              <span className="order-form-total">Total: {fmtPrice(total)}</span>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? 'Placing…' : 'Place Order'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+Object.assign(window, { OrderCard, CustomerOrdersPage, NewOrderPage })
+
+  </script>
+  <script type="text/babel">
+// admin.jsx — AdminOrdersPage, AdminUsersPage
+
+// ── AdminOrderCard ────────────────────────────────────────────────────────
+
+function AdminOrderCard({ order, onStatusChange }) {
+  const [status, setStatus] = React.useState(order.status)
+  const [saving, setSaving] = React.useState(false)
+  const total = calcTotal(order.items)
+
+  const handleStatusChange = async (newStatus) => {
+    const prev = status
+    setStatus(newStatus)
+    setSaving(true)
+    try {
+      await mockApi.updateOrderStatus(order.id, newStatus)
+      onStatusChange(order.id, newStatus)
+      addToast(`Status updated to ${newStatus}`, 'success')
+    } catch {
+      setStatus(prev)
+      addToast('Failed to update status.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="order-card">
+      <div className="order-card-header">
+        <span className="order-id">{shortId(order.id)}</span>
+        <StatusBadge status={status} />
+        <span className="order-email">{order.user_email}</span>
+        <span className="order-date">{formatDate(order.created_at)}</span>
+      </div>
+      <div className="order-items">
+        {order.items.map((item, i) => (
+          <div className="order-item" key={i}>
+            <span className="item-name">{item.qty}× {item.name}</span>
+            <span>{fmtPrice(item.unit_price * item.qty)}</span>
+          </div>
+        ))}
+        <div className="order-total">{fmtPrice(total)}</div>
+      </div>
+      <div className="inline-status-wrap">
+        <label>Status</label>
+        <select
+          className="status-select"
+          value={status}
+          onChange={e => handleStatusChange(e.target.value)}
+          disabled={saving || status === 'CANCELLED'}
+        >
+          {ADMIN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          {status === 'CANCELLED' && <option value="CANCELLED">CANCELLED</option>}
+        </select>
+        {saving && <span style={{fontSize: 11, color: 'var(--text-muted)'}}>Saving…</span>}
+        {status === 'CANCELLED' && (
+          <span style={{fontSize: 11, color: 'var(--text-muted)'}}>Cancelled by customer</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── AdminOrdersPage ───────────────────────────────────────────────────────
+
+function AdminOrdersPage() {
+  const [orders, setOrders]   = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+  const [filter, setFilter]   = React.useState('ALL')
+
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      const data = await mockApi.getOrders(filter === 'ALL' ? null : filter, null)
+      setOrders(data)
+    } catch {
+      addToast('Failed to load orders.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [filter])
+
+  React.useEffect(() => {
+    setLoading(true)
+    fetchOrders()
+    const id = setInterval(fetchOrders, 10000)
+    return () => clearInterval(id)
+  }, [fetchOrders])
+
+  const handleStatusChange = (id, newStatus) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o))
+  }
+
+  return (
+    <div className="page">
+      <h1 className="page-title">All Orders</h1>
+      <div className="filter-bar">
+        <select value={filter} onChange={e => setFilter(e.target.value)}>
+          <option value="ALL">All statuses</option>
+          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        {!loading && (
+          <span className="orders-count">{orders.length} order{orders.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
+      {loading ? (
+        <>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+          <div className="skeleton skeleton-card"></div>
+        </>
+      ) : orders.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📋</div>
+          <h3>No orders found</h3>
+          <p>Try a different status filter.</p>
+        </div>
+      ) : (
+        orders.map(order => (
+          <AdminOrderCard
+            key={order.id + order.status}
+            order={order}
+            onStatusChange={handleStatusChange}
+          />
+        ))
+      )}
+    </div>
+  )
+}
+
+// ── AdminUsersPage ────────────────────────────────────────────────────────
+
+function AdminUsersPage() {
+  const [users, setUsers]     = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    mockApi.getUsers()
+      .then(setUsers)
+      .catch(() => addToast('Failed to load users.', 'error'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <div className="page">
+      <h1 className="page-title">Users</h1>
+      <div className="card data-table-wrap" style={{padding: 0, overflow: 'hidden'}}>
+        {loading ? (
+          <div style={{padding: 24}}>
+            <div className="skeleton" style={{height: 20, marginBottom: 12}}></div>
+            <div className="skeleton" style={{height: 20, marginBottom: 12}}></div>
+            <div className="skeleton" style={{height: 20}}></div>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id}>
+                  <td style={{fontWeight: 500}}>{u.email}</td>
+                  <td>
+                    <span className={`role-badge ${u.role}`}>{u.role}</span>
+                  </td>
+                  <td style={{color: 'var(--text-muted)'}}>
+                    {new Date(u.joined).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+Object.assign(window, { AdminOrderCard, AdminOrdersPage, AdminUsersPage })
+
+  </script>
+  <script type="text/babel">
+// app.jsx — Navbar, routing, root render
+
+// ── Navbar ────────────────────────────────────────────────────────────────
+
+function Navbar({ page, onNavigate }) {
+  const { user, logout } = useAuth()
+  if (!user) return null
+
+  const isAdmin = user.role === 'admin'
+
+  const handleLogout = () => {
+    logout()
+    onNavigate('/login')
+  }
+
+  const link = (label, path) => (
+    <button
+      className={`nav-link ${page === path ? 'active' : ''}`}
+      onClick={() => onNavigate(path)}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <nav className="navbar">
+      <span className="navbar-brand">⬡ Orders</span>
+      <div className="navbar-links">
+        {isAdmin ? (
+          <>
+            {link('All Orders', '/admin/orders')}
+            {link('Users', '/admin/users')}
+          </>
+        ) : (
+          <>
+            {link('My Orders', '/orders')}
+            {link('New Order', '/orders/new')}
+          </>
+        )}
+      </div>
+      <div className="navbar-right">
+        <span className="navbar-email">{user.email}</span>
+        <span className={`role-badge ${user.role}`}>{user.role}</span>
+        <button className="nav-logout" onClick={handleLogout}>Log out</button>
+      </div>
+    </nav>
+  )
+}
+
+// ── App ───────────────────────────────────────────────────────────────────
+
+function App() {
+  const { user } = useAuth()
+
+  // Hash-based routing
+  const getPage = () => window.location.hash.replace('#', '') || '/login'
+  const [page, setPage] = React.useState(getPage)
+  const [newOrderId, setNewOrderId] = React.useState(null)
+
+  React.useEffect(() => {
+    const handler = () => setPage(getPage())
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
+
+  const navigate = React.useCallback((path) => {
+    window.location.hash = path
+    setPage(path)
+  }, [])
+
+  // Auth guards
+  React.useEffect(() => {
+    if (!user && page !== '/login' && page !== '/register') {
+      navigate('/login')
+    } else if (user) {
+      const isAdmin = user.role === 'admin'
+      // Redirect admin away from customer routes and vice versa
+      if (isAdmin && (page === '/orders' || page === '/orders/new')) {
+        navigate('/admin/orders')
+      } else if (!isAdmin && (page === '/admin/orders' || page === '/admin/users')) {
+        navigate('/orders')
+      } else if (page === '/login' || page === '/register') {
+        navigate(isAdmin ? '/admin/orders' : '/orders')
+      }
+    }
+  }, [user, page])
+
+  const renderPage = () => {
+    if (!user) {
+      if (page === '/register') return <RegisterPage onNavigate={navigate} />
+      return <LoginPage onNavigate={navigate} />
+    }
+    if (page === '/orders/new')    return <NewOrderPage onNavigate={navigate} onOrderCreated={id => setNewOrderId(id)} />
+    if (page === '/orders')        return <CustomerOrdersPage onNavigate={navigate} newOrderId={newOrderId} />
+    if (page === '/admin/orders')  return <AdminOrdersPage />
+    if (page === '/admin/users')   return <AdminUsersPage />
+    return null
+  }
+
+  return (
+    <ToastProvider>
+      <Navbar page={page} onNavigate={navigate} />
+      {renderPage()}
+    </ToastProvider>
+  )
+}
+
+// ── Root ──────────────────────────────────────────────────────────────────
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+)
+
+  </script>
+</body>
+</html>

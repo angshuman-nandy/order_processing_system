@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order System — Architecture &amp; Flow</title>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #fff7ed; min-height: 100vh; }
+    button { font-family: inherit; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef } = React
+
+// Arrow marker colors
+const AC = { brown:'#9a3412', orange:'#f97316', red:'#dc2626', purple:'#7c3aed', green:'#16a34a' }
+
+function Defs() {
+  return (
+    <defs>
+      <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="rgba(120,53,15,0.14)" />
+      </filter>
+      {Object.entries(AC).map(([name, fill]) => (
+        <React.Fragment key={name}>
+          <marker id={`a-${name}`} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L8,3 z" fill={fill} />
+          </marker>
+          <marker id={`as-${name}`} markerWidth="8" markerHeight="8" refX="1" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L8,3 z" fill={fill} />
+          </marker>
+        </React.Fragment>
+      ))}
+    </defs>
+  )
+}
+
+function Arrow({ x1, y1, x2, y2, color='brown', label, dashed, bidir, lx=0, ly=0, pad=26 }) {
+  const dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy)||1
+  const ux = dx/len, uy = dy/len
+  const sx = x1+ux*pad, sy = y1+uy*pad
+  const ex = x2-ux*pad, ey = y2-uy*pad
+  const mx = (sx+ex)/2, my = (sy+ey)/2
+  const stroke = AC[color]
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${ex},${ey}`} stroke={stroke} strokeWidth={1.5} fill="none"
+        strokeDasharray={dashed ? '5,4' : undefined}
+        markerEnd={`url(#a-${color})`}
+        markerStart={bidir ? `url(#as-${color})` : undefined} />
+      {label && (
+        <text x={mx+lx} y={my+ly} fill={stroke} fontSize={9} fontWeight={600}
+          textAnchor="middle" dominantBaseline="middle" style={{pointerEvents:'none'}}>
+          {label}
+        </text>
+      )}
+    </g>
+  )
+}
+
+function Box({ x, y, w=152, h=52, title, sub, bg, border, tc='#431407', onHover }) {
+  return (
+    <g transform={`translate(${x-w/2},${y-h/2})`}
+      onMouseEnter={() => onHover?.(title)} onMouseLeave={() => onHover?.(null)}>
+      <rect width={w} height={h} rx={8} fill={bg} stroke={border||bg} strokeWidth={1.5} filter="url(#sh)" />
+      <text x={w/2} y={sub ? h/2-7 : h/2} fill={tc} fontSize={13} fontWeight={700} textAnchor="middle" dominantBaseline="middle">{title}</text>
+      {sub && <text x={w/2} y={h/2+9} fill={tc} fontSize={9} textAnchor="middle" dominantBaseline="middle" opacity={0.65}>{sub}</text>}
+    </g>
+  )
+}
+
+function Pill({ x, y, label, bg, border, tc, w=120, h=38 }) {
+  return (
+    <g transform={`translate(${x-w/2},${y-h/2})`}>
+      <rect width={w} height={h} rx={h/2} fill={bg} stroke={border} strokeWidth={2} />
+      <text x={w/2} y={h/2} fill={tc} fontSize={11} fontWeight={700} textAnchor="middle" dominantBaseline="middle" letterSpacing="0.06em">{label}</text>
+    </g>
+  )
+}
+
+// ── Architecture ──────────────────────────────────────────
+
+const TIPS = {
+  'React + Vite': 'Frontend SPA — runs on port 5173 outside Docker during development. Calls the API at localhost:8000. React Router v6 for routing, Axios for API calls, JWT decoded from the access_token payload.',
+  'FastAPI': 'Async API server. Uses sync SQLAlchemy sessions run inside FastAPI\'s threadpool. Handles OAuth2 + JWT auth, role-scoped order routes, and admin-only user listing. Port 8000.',
+  'PostgreSQL': 'Primary datastore for Users, Orders, and OrderItems. UUID primary keys generated in Python. Version 15, psycopg2-binary driver. Internal network only — not exposed to host.',
+  'Redis': 'Celery message broker and result backend. AOF persistence enabled so enqueued countdown tasks survive restarts. Internal network only. Redis 7-alpine.',
+  'Celery Worker': 'Consumes auto_process_order tasks. Each task fires 300 seconds after the order is created (countdown=300). Uses the same sync SQLAlchemy engine as the API. acks_late=True for reliability.',
+}
+
+function ArchTab() {
+  const [tip, setTip] = useState(null)
+  const [mouse, setMouse] = useState({x:0,y:0})
+  const ref = useRef()
+
+  const onMove = (e) => {
+    const r = ref.current?.getBoundingClientRect()
+    if (r) setMouse({x: e.clientX-r.left, y: e.clientY-r.top})
+  }
+
+  const fe  = {x:400, y:65},  api = {x:400, y:215}
+  const pg  = {x:185, y:378}, rd  = {x:640, y:278}, wk = {x:640, y:400}
+
+  return (
+    <div style={{position:'relative'}} ref={ref} onMouseMove={onMove}>
+      <svg width="100%" viewBox="0 0 840 470" style={{display:'block', fontFamily:'inherit'}}>
+        <Defs />
+        {/* Docker zone */}
+        <rect x={75} y={140} width={690} height={305} rx={12} fill="#fffbf7"
+          stroke="#fed7aa" strokeWidth={1.5} strokeDasharray="8,5" />
+        <text x={82} y={132} fill="#9a3412" fontSize={10} fontWeight={700} letterSpacing="0.07em">DOCKER COMPOSE</text>
+        <text x={82} y={47} fill="#9a3412" fontSize={10} fontWeight={700} letterSpacing="0.07em">LOCAL DEVELOPMENT</text>
+
+        {/* Arrows */}
+        <Arrow x1={fe.x}  y1={fe.y}  x2={api.x} y2={api.y}  color="orange" label="REST / Bearer JWT" lx={52} />
+        <Arrow x1={api.x} y1={api.y} x2={pg.x}  y2={pg.y}   color="brown"  label="SQLAlchemy (sync)" bidir lx={-50} />
+        <Arrow x1={api.x} y1={api.y} x2={rd.x}  y2={rd.y}   color="red"    label="apply_async(countdown=300)" ly={-13} />
+        <Arrow x1={rd.x}  y1={rd.y}  x2={wk.x}  y2={wk.y}   color="red"    label="broker / consume" lx={30} />
+        <Arrow x1={wk.x}  y1={wk.y}  x2={pg.x}  y2={pg.y}   color="brown"  label="status → PROCESSING" dashed ly={14} />
+
+        {/* Nodes */}
+        <Box {...fe}  w={164}       title="React + Vite"   sub="localhost:5173"        bg="#fff7ed" border="#fb923c" tc="#c2410c" onHover={setTip} />
+        <Box {...api} w={170} h={58} title="FastAPI"        sub="api:8000 — uvicorn"    bg="#f97316" border="#ea580c" tc="#fff"    onHover={setTip} />
+        <Box {...pg}               title="PostgreSQL"      sub="db:5432 — psycopg2"    bg="#fef3c7" border="#f59e0b" tc="#78350f" onHover={setTip} />
+        <Box {...rd}               title="Redis"           sub="redis:6379 — AOF on"   bg="#fee2e2" border="#f87171" tc="#991b1b" onHover={setTip} />
+        <Box {...wk}  w={162}       title="Celery Worker"   sub="same image as api"     bg="#ffedd5" border="#fb923c" tc="#9a3412" onHover={setTip} />
+
+        {/* Port badge on API */}
+        <text x={570} y={170} fill="#9a3412" fontSize={9} opacity={0.5}>← CORS enabled for :5173</text>
+      </svg>
+
+      {tip && TIPS[tip] && (
+        <div style={{
+          position:'absolute', left: Math.min(mouse.x+16, 580), top: mouse.y-10,
+          background:'#431407', color:'#fff7ed', fontSize:12, padding:'9px 13px',
+          borderRadius:8, maxWidth:240, pointerEvents:'none',
+          boxShadow:'0 4px 14px rgba(0,0,0,0.28)', lineHeight:1.55, zIndex:10,
+        }}>
+          <div style={{fontWeight:700, color:'#fb923c', marginBottom:5}}>{tip}</div>
+          {TIPS[tip]}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Auth & Order Flow ─────────────────────────────────────
+
+function FlowTab() {
+  const ua={x:115,y:55}, lo={x:65,y:158}, rg={x:185,y:158}
+  const jw={x:115,y:258}, ro={x:115,y:350}, cu={x:55,y:448}, ad={x:215,y:448}
+  const cr={x:605,y:55},  pn={x:605,y:158}, pr={x:605,y:270}
+  const sh={x:605,y:372}, dl={x:605,y:460}, ca={x:790,y:213}
+  const P = 20
+
+  return (
+    <svg width="100%" viewBox="0 0 870 495" style={{display:'block', fontFamily:'inherit'}}>
+      <Defs />
+
+      {/* Panel headers */}
+      <text x={18} y={22} fill="#9a3412" fontSize={10} fontWeight={700} letterSpacing="0.07em">AUTH &amp; ROUTING</text>
+      <line x1={400} y1={18} x2={400} y2={478} stroke="#fed7aa" strokeWidth={1} strokeDasharray="4,3" />
+      <text x={420} y={22} fill="#9a3412" fontSize={10} fontWeight={700} letterSpacing="0.07em">ORDER LIFECYCLE</text>
+
+      {/* Auth arrows */}
+      <Arrow x1={ua.x} y1={ua.y} x2={lo.x} y2={lo.y} color="brown" pad={P} />
+      <Arrow x1={ua.x} y1={ua.y} x2={rg.x} y2={rg.y} color="brown" pad={P} />
+      <Arrow x1={lo.x} y1={lo.y} x2={jw.x} y2={jw.y} color="brown" pad={P} />
+      <Arrow x1={rg.x} y1={rg.y} x2={jw.x} y2={jw.y} color="brown" pad={P} />
+      <Arrow x1={jw.x} y1={jw.y} x2={ro.x} y2={ro.y} color="brown" pad={26} />
+      <Arrow x1={ro.x} y1={ro.y} x2={cu.x} y2={cu.y} color="orange" label="customer" pad={26} lx={-32} />
+      <Arrow x1={ro.x} y1={ro.y} x2={ad.x} y2={ad.y} color="brown"  label="admin"    pad={26} lx={32} />
+
+      {/* Order arrows */}
+      <Arrow x1={cr.x} y1={cr.y} x2={pn.x} y2={pn.y} color="brown"  label="POST /orders"  pad={P} lx={48} />
+      <Arrow x1={pn.x} y1={pn.y} x2={pr.x} y2={pr.y} color="orange" label="Celery 300s"   pad={P} lx={46} />
+      <Arrow x1={pr.x} y1={pr.y} x2={sh.x} y2={sh.y} color="brown"  label="admin PATCH"   pad={P} lx={44} />
+      <Arrow x1={sh.x} y1={sh.y} x2={dl.x} y2={dl.y} color="brown"  label="admin PATCH"   pad={P} lx={44} />
+      <Arrow x1={pn.x} y1={pn.y} x2={ca.x} y2={ca.y} color="red"    label="DELETE /cancel" pad={P} dashed ly={-14} />
+
+      {/* Unauthenticated */}
+      <g transform={`translate(${ua.x-58},${ua.y-20})`}>
+        <rect width={116} height={40} rx={20} fill="#ffedd5" stroke="#fb923c" strokeWidth={1.5} />
+        <text x={58} y={20} fill="#c2410c" fontSize={11} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Unauthenticated</text>
+      </g>
+
+      {/* Login */}
+      <g transform={`translate(${lo.x-52},${lo.y-24})`}>
+        <rect width={104} height={48} rx={8} fill="#f97316" stroke="#ea580c" strokeWidth={1.5} filter="url(#sh)" />
+        <text x={52} y={17} fill="#fff" fontSize={12} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Login</text>
+        <text x={52} y={33} fill="#fff" fontSize={9} textAnchor="middle" dominantBaseline="middle" opacity={0.8}>POST /auth/token</text>
+      </g>
+
+      {/* Register */}
+      <g transform={`translate(${rg.x-52},${rg.y-24})`}>
+        <rect width={104} height={48} rx={8} fill="#fb923c" stroke="#f97316" strokeWidth={1.5} filter="url(#sh)" />
+        <text x={52} y={17} fill="#fff" fontSize={12} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Register</text>
+        <text x={52} y={33} fill="#fff" fontSize={9} textAnchor="middle" dominantBaseline="middle" opacity={0.8}>POST /auth/register</text>
+      </g>
+
+      {/* JWT Decode */}
+      <g transform={`translate(${jw.x-66},${jw.y-27})`}>
+        <rect width={132} height={54} rx={8} fill="#fef3c7" stroke="#f59e0b" strokeWidth={1.5} />
+        <text x={66} y={19} fill="#78350f" fontSize={12} fontWeight={700} textAnchor="middle" dominantBaseline="middle">JWT Decode</text>
+        <text x={66} y={37} fill="#92400e" fontSize={9} textAnchor="middle" dominantBaseline="middle">sub · role · exp</text>
+      </g>
+
+      {/* Role Check */}
+      <g transform={`translate(${ro.x-54},${ro.y-27})`}>
+        <rect width={108} height={54} rx={8} fill="#431407" strokeWidth={0} />
+        <text x={54} y={19} fill="#fb923c" fontSize={12} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Role Check</text>
+        <text x={54} y={37} fill="#fcd9b5" fontSize={9} textAnchor="middle" dominantBaseline="middle">user.role ===</text>
+      </g>
+
+      {/* Customer routes */}
+      <g transform={`translate(${cu.x-66},${cu.y-32})`}>
+        <rect width={132} height={64} rx={8} fill="#dcfce7" stroke="#86efac" strokeWidth={1.5} />
+        <text x={66} y={18} fill="#15803d" fontSize={11} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Customer</text>
+        <text x={66} y={35} fill="#166534" fontSize={9} textAnchor="middle" dominantBaseline="middle">/orders</text>
+        <text x={66} y={50} fill="#166534" fontSize={9} textAnchor="middle" dominantBaseline="middle">/orders/new</text>
+      </g>
+
+      {/* Admin routes */}
+      <g transform={`translate(${ad.x-66},${ad.y-32})`}>
+        <rect width={132} height={64} rx={8} fill="#fde68a" stroke="#fbbf24" strokeWidth={1.5} />
+        <text x={66} y={18} fill="#78350f" fontSize={11} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Admin</text>
+        <text x={66} y={35} fill="#92400e" fontSize={9} textAnchor="middle" dominantBaseline="middle">/admin/orders</text>
+        <text x={66} y={50} fill="#92400e" fontSize={9} textAnchor="middle" dominantBaseline="middle">/admin/users</text>
+      </g>
+
+      {/* Create Order */}
+      <g transform={`translate(${cr.x-58},${cr.y-20})`}>
+        <rect width={116} height={40} rx={20} fill="#ffedd5" stroke="#fb923c" strokeWidth={1.5} />
+        <text x={58} y={20} fill="#c2410c" fontSize={11} fontWeight={700} textAnchor="middle" dominantBaseline="middle">Create Order</text>
+      </g>
+
+      {/* Status pills */}
+      <Pill {...pn} label="PENDING"    bg="#fef3c7" border="#f59e0b" tc="#92400e" />
+      <Pill {...pr} label="PROCESSING" bg="#fed7aa" border="#f97316" tc="#9a3412" w={128} />
+      <Pill {...sh} label="SHIPPED"    bg="#ede9fe" border="#a78bfa" tc="#5b21b6" />
+      <Pill {...dl} label="DELIVERED"  bg="#dcfce7" border="#86efac" tc="#15803d" />
+      <Pill {...ca} label="CANCELLED"  bg="#fee2e2" border="#f87171" tc="#991b1b" />
+
+      {/* Celery badge */}
+      <g transform="translate(472,208)">
+        <rect width={108} height={26} rx={13} fill="#431407" />
+        <text x={54} y={13} fill="#fb923c" fontSize={9} fontWeight={700}
+          textAnchor="middle" dominantBaseline="middle">⏱ countdown = 300s</text>
+      </g>
+    </svg>
+  )
+}
+
+// ── Data Model ────────────────────────────────────────────
+
+function ModelTab() {
+  const RH=28, HH=36
+  const tables = [
+    { x:55,  w:200, name:'User',      fields:[
+      {n:'id',              t:'UUID PK',        pk:true},
+      {n:'email',           t:'String UNIQUE'},
+      {n:'hashed_password', t:'String'},
+      {n:'role',            t:'Enum'},
+      {n:'created_at',      t:'DateTime'},
+    ]},
+    { x:325, w:215, name:'Order',     fields:[
+      {n:'id',         t:'UUID PK',         pk:true},
+      {n:'user_id',    t:'UUID FK → User',  fk:true},
+      {n:'status',     t:'Enum (5 states)'},
+      {n:'created_at', t:'DateTime'},
+      {n:'updated_at', t:'DateTime'},
+    ]},
+    { x:610, w:215, name:'OrderItem', fields:[
+      {n:'id',           t:'UUID PK',          pk:true},
+      {n:'order_id',     t:'UUID FK → Order',  fk:true},
+      {n:'product_name', t:'String'},
+      {n:'quantity',     t:'Integer'},
+      {n:'price',        t:'Numeric(10,2)'},
+    ]},
+  ]
+  const th = (t) => HH + t.fields.length * RH + 8
+  const fy = 60 + HH + RH * 1.5   // FK field y (2nd field)
+
+  const STATUSES = [
+    {s:'PENDING',    bg:'#fef3c7',tc:'#92400e'},
+    {s:'PROCESSING', bg:'#fed7aa',tc:'#9a3412'},
+    {s:'SHIPPED',    bg:'#ede9fe',tc:'#5b21b6'},
+    {s:'DELIVERED',  bg:'#dcfce7',tc:'#15803d'},
+    {s:'CANCELLED',  bg:'#fee2e2',tc:'#991b1b'},
+  ]
+
+  return (
+    <svg width="100%" viewBox="0 0 860 355" style={{display:'block', fontFamily:'inherit'}}>
+      <Defs />
+
+      {/* FK relationship arrows */}
+      <line x1={255} y1={fy} x2={325} y2={fy} stroke="#f97316" strokeWidth={2} markerEnd="url(#a-orange)" />
+      <text x={290} y={fy-9} fill="#9a3412" fontSize={10} fontWeight={600} textAnchor="middle">1 : many</text>
+
+      <line x1={540} y1={fy} x2={610} y2={fy} stroke="#f97316" strokeWidth={2} markerEnd="url(#a-orange)" />
+      <text x={575} y={fy-9} fill="#9a3412" fontSize={10} fontWeight={600} textAnchor="middle">1 : many</text>
+
+      {/* Tables */}
+      {tables.map(t => {
+        const h = th(t)
+        return (
+          <g key={t.name} transform={`translate(${t.x},60)`} filter="url(#sh)">
+            <rect width={t.w} height={h} rx={8} fill="white" stroke="#fed7aa" strokeWidth={1.5} />
+            <rect width={t.w} height={HH} rx={8} fill="#f97316" />
+            <rect y={HH-8} width={t.w} height={8} fill="#f97316" />
+            <text x={t.w/2} y={HH/2} fill="white" fontSize={13} fontWeight={700}
+              textAnchor="middle" dominantBaseline="middle">{t.name}</text>
+            {t.fields.map((f, i) => (
+              <g key={f.n} transform={`translate(0,${HH+4+i*RH})`}>
+                {i > 0 && <line x1={0} y1={0} x2={t.w} y2={0} stroke="#fed7aa" strokeWidth={0.5} />}
+                <text x={10} y={RH/2} dominantBaseline="middle"
+                  fill={f.pk ? '#f97316' : f.fk ? '#9a3412' : '#431407'}
+                  fontSize={11} fontWeight={f.pk||f.fk ? 600 : 400}>
+                  {f.pk ? '🔑 ' : f.fk ? '🔗 ' : '   '}{f.n}
+                </text>
+                <text x={t.w-8} y={RH/2} dominantBaseline="middle"
+                  fill="#78350f" fontSize={9} textAnchor="end" opacity={0.6}>{f.t}</text>
+              </g>
+            ))}
+          </g>
+        )
+      })}
+
+      {/* Status legend */}
+      <text x={55} y={300} fill="#9a3412" fontSize={10} fontWeight={700} letterSpacing="0.06em">ORDER STATUSES:</text>
+      {STATUSES.map(({s,bg,tc},i) => (
+        <g key={s} transform={`translate(${55+200+i*122},283)`}>
+          <rect width={110} height={26} rx={13} fill={bg} />
+          <text x={55} y={13} fill={tc} fontSize={10} fontWeight={700}
+            textAnchor="middle" dominantBaseline="middle" letterSpacing="0.05em">{s}</text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+// ── App ───────────────────────────────────────────────────
+
+function App() {
+  const [tab, setTab] = useState('arch')
+  const TABS = [
+    {id:'arch',  label:'Architecture'},
+    {id:'flow',  label:'Auth & Order Flow'},
+    {id:'model', label:'Data Model'},
+  ]
+
+  return (
+    <div style={{
+      maxWidth: 900, margin: '0 auto', padding: '28px 20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+    }}>
+      <div style={{marginBottom:22}}>
+        <h1 style={{fontSize:20,fontWeight:700,color:'#431407',marginBottom:3}}>
+          Order Processing System
+        </h1>
+        <p style={{fontSize:13,color:'#9a3412'}}>
+          FastAPI · PostgreSQL · Redis · Celery · React + Vite
+        </p>
+      </div>
+
+      <div style={{display:'flex',gap:6,marginBottom:18}}>
+        {TABS.map(({id,label}) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding:'7px 16px', borderRadius:7, fontSize:13, fontWeight:600,
+            border:'1px solid', cursor:'pointer', transition:'all 0.15s',
+            borderColor: tab===id ? '#f97316' : '#fed7aa',
+            background:  tab===id ? '#f97316' : 'transparent',
+            color:       tab===id ? 'white'   : '#9a3412',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <div style={{
+        background:'white', border:'1px solid #fed7aa',
+        borderRadius:12, padding:'20px 16px',
+        boxShadow:'0 1px 3px rgba(120,53,15,0.12)',
+      }}>
+        {tab==='arch'  && <ArchTab />}
+        {tab==='flow'  && <FlowTab />}
+        {tab==='model' && <ModelTab />}
+      </div>
+
+      <p style={{fontSize:11,color:'#9a3412',marginTop:10,opacity:0.65}}>
+        Architecture tab: hover nodes for details.
+      </p>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+</script>
+</body>
+</html>

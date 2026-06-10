@@ -2,13 +2,13 @@
   {
     "id": "00000000-0000-0000-0000-000000000001",
     "email": "admin@example.com",
-    "password": "AdminPass123!",
+    "password": "password",
     "role": "admin"
   },
   {
     "id": "00000000-0000-0000-0000-000000000002",
     "email": "customer@example.com",
-    "password": "CustomerPass123!",
+    "password": "password",
     "role": "customer"
   }
 ]

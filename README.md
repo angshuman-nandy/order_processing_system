@@ -10,7 +10,7 @@ orders and users. A Celery worker automatically advances each order from `PENDIN
 ## Architecture & Flow Diagrams
 
 The interactive diagrams (Architecture, Auth & Order Flow, Data Model — hover nodes for details)
-live at [`frontend/design_handoff/diagrams.html`](frontend/design_handoff/diagrams.html). Open
+live at <a href="frontend/design_handoff/diagrams.html" target="_blank" rel="noopener noreferrer">frontend/design_handoff/diagrams.html</a>. Open
 that file directly in a browser for the live version.
 
 ---

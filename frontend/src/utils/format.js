@@ -17,7 +17,7 @@ export function calcTotal(items) {
 }
 
 export function fmtPrice(n) {
-  return '£' + n.toFixed(2)
+  return '₹' + n.toFixed(2)
 }
 
 export function shortId(id) {
